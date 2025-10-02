@@ -20,8 +20,11 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    console.log("👉 Raw body:", body); // 1️⃣ log the incoming request body
 
     const parsed = userSchema.safeParse(body);
+    console.log("👉 Parsed result:", parsed); // 2️⃣ log the validation result
+
     if (!parsed.success) {
       return NextResponse.json(
         { errors: parsed.error.flatten().fieldErrors },
@@ -38,6 +41,7 @@ export async function POST(req: Request) {
         password: hashedPassword,
       },
     });
+    console.log(user)
 
     return NextResponse.json(user, { status: 201 });
   } catch (error: unknown) {

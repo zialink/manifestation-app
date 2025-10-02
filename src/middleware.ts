@@ -1,15 +1,24 @@
 import { withAuth } from "next-auth/middleware";
+import { NextResponse } from "next/server";
 
-export default withAuth({
-  pages: {
-    signIn: "/api/auth/signin", // redirect here if not logged in
+// Run middleware only for protected routes
+export default withAuth(
+  function middleware(req) {
+    return NextResponse.next();
   },
-});
+  {
+    callbacks: {
+      // Allow access only if user has a valid token
+      authorized: ({ token }) => !!token,
+    },
+  }
+);
 
+// 👇 Configure which routes require authentication
 export const config = {
   matcher: [
-    "/api/(?!public/).*",  // protect all /api/* EXCEPT /api/public/*
+    "/dashboard/:path*",   // protect dashboard
+    "/api/goals/:path*",   // protect Goals API
+    "/api/words/:path*",   // protect Words API
   ],
 };
-
-// BUT: exclude /api/public/*
