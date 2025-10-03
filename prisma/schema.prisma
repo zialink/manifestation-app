@@ -8,23 +8,52 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  name      String?
-  password  String
-  image     String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  email     String   @unique
   goals     Goal[]
+  affirmations Affirmation[]
+  hypnosis   Hypnosis[]
+  imagination Imagination[]
 }
 
 model Goal {
-  id              String     @id @default(uuid())
-  userId          String
-  user            User       @relation(fields: [userId], references: [id])
-  description     String
-  hypnosisScript  String?
-  affirmations    String[]   @default([])
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  affirmations Affirmation[]
+  hypnosis     Hypnosis[]
+  imagination  Imagination[]
+  createdAt   DateTime      @default(now())
+}
+
+model Affirmation {
+  id        String   @id @default(cuid())
+  text      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  goalId    String?  // optional link to a goal
+  goal      Goal?    @relation(fields: [goalId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Hypnosis {
+  id        String   @id @default(cuid())
+  script    String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  goalId    String?  
+  goal      Goal?    @relation(fields: [goalId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Imagination {
+  id        String   @id @default(cuid())
+  scenario  String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  goalId    String?  
+  goal      Goal?    @relation(fields: [goalId], references: [id])
+  createdAt DateTime @default(now())
 }

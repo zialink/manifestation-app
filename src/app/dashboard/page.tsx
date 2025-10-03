@@ -1,5 +1,16 @@
-"use client";
+"use client"; // needed because we’re using signOut and client-side hooks
 import { signOut } from "next-auth/react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import {
+  LayoutDashboard,
+  Target,
+  Quote,
+  Moon,
+  LogOut,
+  User,
+  Settings,
+} from "lucide-react";
 
 export default function DashboardPage() {
   return (
@@ -9,38 +20,69 @@ export default function DashboardPage() {
         <div className="h-16 flex items-center justify-center font-bold text-xl border-b border-indigo-600">
           Manifest
         </div>
-        <nav className="flex-1 px-4 py-6 space-y-2">
-          <a
+
+        <nav className="flex-1 px-6 py-6 space-y-2">
+          <Link
             href="/dashboard"
-            className="block px-3 py-2 rounded-lg hover:bg-indigo-600 transition"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-indigo-600 transition"
           >
+            <LayoutDashboard size={18} />
             Dashboard
-          </a>
-          <a
+          </Link>
+          <Link
             href="/dashboard/goals"
-            className="block px-3 py-2 rounded-lg hover:bg-indigo-600 transition"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-indigo-600 transition"
           >
+            <Target size={18} />
             Goals
-          </a>
-          <a
+          </Link>
+          <Link
             href="/dashboard/affirmations"
-            className="block px-3 py-2 rounded-lg hover:bg-indigo-600 transition"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-indigo-600 transition"
           >
+            <Quote size={18} />
             Affirmations
-          </a>
-          <a
+          </Link>
+          <Link
             href="/dashboard/hypnosis"
-            className="block px-3 py-2 rounded-lg hover:bg-indigo-600 transition"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-indigo-600 transition"
           >
+            <Moon size={18} />
             Hypnosis
-          </a>
+          </Link>
         </nav>
-        <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          className="m-4 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition"
-        >
-          Logout
-        </button>
+
+        {/* Bottom section */}
+        <div className="p-4 space-y-4 border-t border-indigo-600">
+          <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="w-full flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition"
+          >
+            <LogOut size={18} />
+            Logout
+          </button>
+
+          <div className="flex gap-3">
+            <Link href="/dashboard/profile" className="flex-1">
+              <Button
+                variant="outline"
+                className="w-full flex items-center justify-center gap-2 bg-white/10 text-white border-white/30 hover:bg-white/20"
+              >
+                <User size={18} />
+                Profile
+              </Button>
+            </Link>
+            <Link href="/dashboard/settings" className="flex-1">
+              <Button
+                variant="outline"
+                className="w-full flex items-center justify-center gap-2 bg-white/10 text-white border-white/30 hover:bg-white/20"
+              >
+                <Settings size={18} />
+                Settings
+              </Button>
+            </Link>
+          </div>
+        </div>
       </aside>
 
       {/* Main content */}

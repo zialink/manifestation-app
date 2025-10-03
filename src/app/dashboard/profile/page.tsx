@@ -1,108 +1,67 @@
-// app/dashboard/profile/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { ArrowLeft } from "lucide-react";
 
 export default function ProfilePage() {
+  const { data: session } = useSession();
   const router = useRouter();
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-  });
-  const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
 
-  // Fetch current user
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const res = await fetch("/api/users/me");
-        if (res.ok) {
-          const data = await res.json();
-          setFormData({ name: data.name || "", email: data.email || "" });
-        }
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUser();
-  }, []);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setMessage("");
-
-    try {
-      const res = await fetch("/api/users/me", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      if (res.ok) {
-        setMessage("Profile updated successfully!");
-      } else {
-        const data = await res.json();
-        setMessage(data.error || "Something went wrong.");
-      }
-    } catch (error) {
-      console.error(error);
-      setMessage("Error updating profile.");
-    }
-  };
-
-  if (loading) return <p className="p-4">Loading...</p>;
+  if (!session) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p className="text-lg text-gray-600">Loading profile...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 max-w-lg mx-auto">
-      {/* Back Arrow */}
+    <div className="p-6 max-w-2xl mx-auto">
+      {/* Back Button */}
       <button
         onClick={() => router.push("/dashboard")}
-        className="flex items-center text-gray-600 hover:text-black mb-6"
+        className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
       >
-        <ArrowLeft className="w-5 h-5 mr-2" />
+        <ArrowLeft className="h-5 w-5 mr-2" />
         Back to Dashboard
       </button>
 
-      <h1 className="text-2xl font-bold mb-6">My Profile</h1>
+      <Card className="shadow-xl">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Profile</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-4">
+            {session.user?.image ? (
+              <img
+                src={session.user.image}
+                alt="Profile picture"
+                className="w-16 h-16 rounded-full border"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
+                {session.user?.name?.[0]}
+              </div>
+            )}
+            <div>
+              <p className="text-lg font-semibold">{session.user?.name}</p>
+              <p className="text-gray-600">{session.user?.email}</p>
+            </div>
+          </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <Label htmlFor="name">Name</Label>
-          <Input
-            id="name"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-          />
-        </div>
-
-        <Button type="submit">Update Profile</Button>
-      </form>
-
-      {message && <p className="mt-4 text-sm text-gray-700">{message}</p>}
+          <div className="mt-6">
+            <Button
+              variant="destructive"
+              onClick={() => signOut({ callbackUrl: "/" })}
+            >
+              Sign Out
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
