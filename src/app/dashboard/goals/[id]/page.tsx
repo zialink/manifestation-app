@@ -1,163 +1,367 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Edit, Trash2 } from "lucide-react";
 
 
-// Types
+interface Suggestion {
+  id?: string;
+  type: "affirmation" | "hypnosis" | "visualization";
+  content: string;
+  saved?: boolean;
+}
 interface Goal {
   id: string;
   title: string;
   description?: string;
-  createdAt: string;
 }
 
-interface Affirmation {
-  id: string;
-  text: string;
-  saved: boolean;
-}
-
-interface Hypnosis {
-  id: string;
-  script: string;
-  saved: boolean;
-}
-
-export default function SingleGoalPage() {
+export default function GoalPage() {
   const params = useParams();
   const goalId = params?.id as string;
 
   const [goal, setGoal] = useState<Goal | null>(null);
-  const [affirmations, setAffirmations] = useState<Affirmation[]>([]);
-  const [hypnosis, setHypnosis] = useState<Hypnosis[]>([]);
-  const [imagination, setImagination] = useState<string>("");
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [visualizationText, setVisualizationText] = useState("");
+  const [savingVisualization, setSavingVisualization] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
 
-  // Fetch goal + AI suggestions
+  // ✅ Fetch goal and its suggestions
   useEffect(() => {
-    const fetchGoal = async () => {
-      const res = await fetch(`/api/goals/${goalId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setGoal(data.goal);
-        setAffirmations(data.affirmations || []);
-        setHypnosis(data.hypnosis || []);
-        setImagination(data.imagination || "");
+    if (!goalId) return;
+    const fetchData = async () => {
+      try {
+        const [goalRes, sugRes] = await Promise.all([
+          fetch(`/api/goals/${goalId}`),
+          fetch(`/api/goals/${goalId}/suggestions`),
+        ]);
+
+        const goalData = await goalRes.json();
+        const sugData = await sugRes.json();
+
+        setGoal(goalData);
+        setSuggestions(sugData);
+      } catch (err) {
+        console.error("Failed to fetch data:", err);
+      } finally {
+        setLoading(false);
       }
     };
-    if (goalId) fetchGoal();
+    fetchData();
   }, [goalId]);
 
-  // Save selected affirmation
-  const handleSaveAffirmation = async (id: string) => {
-    await fetch(`/api/goals/${goalId}/affirmations`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    setAffirmations((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, saved: true } : a))
-    );
+  if (loading) return <div className="p-6">Loading goal...</div>;
+  if (!goal) return <div className="p-6">Goal not found.</div>;
+
+  // ✅ Separate saved and suggested items
+  const savedAffirmations = suggestions.filter(
+    (s) => s.type === "affirmation" && s.id
+  );
+  const savedHypnosis = suggestions.filter(
+    (s) => s.type === "hypnosis" && s.id
+  );
+
+  const unsavedAffirmations = suggestions.filter(
+    (s) => s.type === "affirmation" && !s.id
+  );
+  const unsavedHypnosis = suggestions.filter(
+    (s) => s.type === "hypnosis" && !s.id
+  );
+
+  // ✅ Visualization handling
+  const visualization = suggestions.find(
+    (s) => s.type === "visualization" && s.id
+  );
+
+  const handleGenerateVisualization = () => {
+    const dummyScript =
+      "Imagine yourself walking into a bright future where your goal has become reality. Feel the joy, the gratitude, and the power of success flowing through you.";
+    setVisualizationText(dummyScript);
   };
 
-  // Save selected hypnosis
-  const handleSaveHypnosis = async (id: string) => {
-    await fetch(`/api/goals/${goalId}/hypnosis`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id }),
-    });
-    setHypnosis((prev) =>
-      prev.map((h) => (h.id === id ? { ...h, saved: true } : h))
-    );
+  const handleSaveVisualization = async () => {
+    if (!visualizationText.trim()) return;
+    setSavingVisualization(true);
+    try {
+      const res = await fetch(`/api/goals/${goalId}/suggestions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "visualization",
+          content: visualizationText.trim(),
+          suggestionId: visualizationText.trim(), // use text as unique id
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to save visualization");
+      // Always refresh from DB so UI updates immediately
+      const sugRes = await fetch(`/api/goals/${goalId}/suggestions`);
+      const sugData = await sugRes.json();
+      setSuggestions(sugData);
+      setVisualizationText("");
+    } catch (err) {
+      console.error("Error saving visualization:", err);
+    } finally {
+      setSavingVisualization(false);
+    }
   };
 
-  // Save imagination
-  const handleSaveImagination = async () => {
-    await fetch(`/api/goals/${goalId}/imagination`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: imagination }),
-    });
+  const handleSaveSuggestion = async (suggestion: Suggestion) => {
+    try {
+      const res = await fetch(`/api/goals/${goalId}/suggestions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: suggestion.type,
+          content: suggestion.content,
+          suggestionId: suggestion.id || suggestion.content, // fallback to content if no id
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to save suggestion");
+      // Always refresh from DB so UI updates immediately
+      const sugRes = await fetch(`/api/goals/${goalId}/suggestions`);
+      const sugData = await sugRes.json();
+      setSuggestions(sugData);
+    } catch (err) {
+      console.error("Error saving suggestion:", err);
+    }
   };
 
-  if (!goal) {
-    return <p className="p-6">Loading goal...</p>;
-  }
+  // Edit and delete for saved items
+  const handleEdit = (s: Suggestion) => {
+    setEditingId(s.id || null);
+    setEditContent(s.content);
+  };
+  const handleEditSubmit = async (s: Suggestion) => {
+    if (!s.id) return;
+    await fetch(`/api/goals/${goalId}/suggestions/${s.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: editContent }),
+    });
+    const sugRes = await fetch(`/api/goals/${goalId}/suggestions`);
+    const sugData = await sugRes.json();
+    setSuggestions(sugData);
+    setEditingId(null);
+  };
+  const handleDelete = async (s: Suggestion) => {
+    if (!s.id) return;
+    await fetch(`/api/goals/${goalId}/suggestions/${s.id}`, { method: "DELETE" });
+    const sugRes = await fetch(`/api/goals/${goalId}/suggestions`);
+    const sugData = await sugRes.json();
+    setSuggestions(sugData);
+  };
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Goal Header */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{goal.title}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-gray-600">{goal.description || "No description"}</p>
-          <p className="text-xs text-gray-400 mt-2">
-            Created: {new Date(goal.createdAt).toLocaleDateString()}
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Affirmations Row */}
+    <div className="p-6 space-y-8">
       <div>
-        <h2 className="text-lg font-semibold mb-3">Suggested Affirmations</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {affirmations.map((a) => (
-            <Card key={a.id}>
-              <CardContent className="flex flex-col gap-3 p-4">
-                <p>{a.text}</p>
-                {!a.saved ? (
-                  <Button onClick={() => handleSaveAffirmation(a.id)}>
-                    Save
-                  </Button>
-                ) : (
-                  <span className="text-green-600 text-sm">Saved ✓</span>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <h1 className="text-2xl font-bold">{goal.title}</h1>
+        <p className="text-gray-600">{goal.description}</p>
       </div>
 
-      {/* Hypnosis Row */}
+      {/* AFFIRMATIONS */}
       <div>
-        <h2 className="text-lg font-semibold mb-3">Suggested Hypnosis Scripts</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {hypnosis.map((h) => (
-            <Card key={h.id}>
-              <CardContent className="flex flex-col gap-3 p-4">
-                <p>{h.script}</p>
-                {!h.saved ? (
-                  <Button onClick={() => handleSaveHypnosis(h.id)}>
+        <h2 className="text-xl font-semibold">Affirmations</h2>
+        {savedAffirmations.length > 0 ? (
+          <div className="space-y-3">
+            {savedAffirmations.map((a) => (
+              <Card key={a.id} className="flex items-center gap-2 p-2">
+                <CardContent className="flex items-center gap-2 p-2 w-full">
+                  {editingId === a.id ? (
+                    <>
+                      <input
+                        className="border rounded px-2 py-1 mr-2 flex-1"
+                        value={editContent}
+                        onChange={e => setEditContent(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") handleEditSubmit(a);
+                        }}
+                        autoFocus
+                      />
+                      <Button size="icon" variant="ghost" onClick={() => setEditingId(null)}>
+                        Cancel
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => handleEditSubmit(a)}>
+                        Save
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex-1">{a.content}</span>
+                      <Button size="icon" variant="ghost" onClick={() => handleEdit(a)}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => handleDelete(a)}>
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </Button>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500">No affirmations yet.</p>
+        )}
+
+        {unsavedAffirmations.length > 0 && (
+          <div className="mt-3">
+            <h3 className="text-sm font-medium text-gray-600">
+              Suggested Affirmations
+            </h3>
+            {unsavedAffirmations.map((a, i) => (
+              <Card key={i} className="border rounded-md mt-2">
+                <CardContent className="flex justify-between items-center p-3">
+                  <span>{a.content}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => await handleSaveSuggestion(a)}
+                  >
                     Save
                   </Button>
-                ) : (
-                  <span className="text-green-600 text-sm">Saved ✓</span>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Imagination Row */}
+      {/* HYPNOSIS */}
       <div>
-        <h2 className="text-lg font-semibold mb-3">Your Imagination</h2>
-        <Card>
-          <CardContent className="space-y-4 p-4">
+        <h2 className="text-xl font-semibold">Hypnosis Scripts</h2>
+        {savedHypnosis.length > 0 ? (
+          <div className="space-y-3">
+            {savedHypnosis.map((h) => (
+              <Card key={h.id} className="flex items-center gap-2 p-2">
+                <CardContent className="flex items-center gap-2 p-2 w-full">
+                  {editingId === h.id ? (
+                    <>
+                      <input
+                        className="border rounded px-2 py-1 mr-2 flex-1"
+                        value={editContent}
+                        onChange={e => setEditContent(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") handleEditSubmit(h);
+                        }}
+                        autoFocus
+                      />
+                      <Button size="icon" variant="ghost" onClick={() => setEditingId(null)}>
+                        Cancel
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => handleEditSubmit(h)}>
+                        Save
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex-1">{h.content}</span>
+                      <Button size="icon" variant="ghost" onClick={() => handleEdit(h)}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={() => handleDelete(h)}>
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </Button>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500">No hypnosis scripts yet.</p>
+        )}
+
+        {unsavedHypnosis.length > 0 && (
+          <div className="mt-3">
+            <h3 className="text-sm font-medium text-gray-600">
+              Suggested Hypnosis Scripts
+            </h3>
+            {unsavedHypnosis.map((h, i) => (
+              <Card key={i} className="border rounded-md mt-2">
+                <CardContent className="flex justify-between items-center p-3">
+                  <span>{h.content}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => await handleSaveSuggestion(h)}
+                  >
+                    Save
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* VISUALIZATION */}
+      <div>
+        <h2 className="text-xl font-semibold">Visualization</h2>
+
+        {visualization ? (
+          <Card className="flex items-center gap-2 p-2">
+            <CardContent className="flex items-center gap-2 p-2 w-full">
+              {editingId === visualization.id ? (
+                <>
+                  <input
+                    className="border rounded px-2 py-1 mr-2 flex-1"
+                    value={editContent}
+                    onChange={e => setEditContent(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") handleEditSubmit(visualization);
+                    }}
+                    autoFocus
+                  />
+                  <Button size="icon" variant="ghost" onClick={() => setEditingId(null)}>
+                    Cancel
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={() => handleEditSubmit(visualization)}>
+                    Save
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <span className="flex-1">{visualization.content}</span>
+                  <Button size="icon" variant="ghost" onClick={() => handleEdit(visualization)}>
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={() => handleDelete(visualization)}>
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <div>
             <textarea
-              placeholder="Describe your imaginative scenario..."
-              value={imagination}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setImagination(e.target.value)}
-              className="w-full border rounded px-2 py-1"
+              value={visualizationText}
+              onChange={(e) => setVisualizationText(e.target.value)}
+              placeholder="Write or generate your visualization here..."
+              className="w-full border rounded-md p-3 mt-2"
+              rows={4}
             />
-            <Button onClick={handleSaveImagination}>Save Imagination</Button>
-          </CardContent>
-        </Card>
+            <div className="flex gap-2 mt-3">
+              <Button
+                onClick={handleSaveVisualization}
+                disabled={savingVisualization}
+              >
+                {savingVisualization ? "Saving..." : "Save"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleGenerateVisualization}
+              >
+                Generate
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

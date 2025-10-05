@@ -3,57 +3,76 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "postgresql" // or mysql/sqlite, adjust as needed
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  goals     Goal[]
-  affirmations Affirmation[]
-  hypnosis   Hypnosis[]
-  imagination Imagination[]
-}
-
-model Goal {
-  id          String        @id @default(cuid())
-  title       String
-  description String?
-  userId      String
-  user        User          @relation(fields: [userId], references: [id])
+  id           String           @id @default(cuid())
+  email        String           @unique
+  goals        Goal[]
   affirmations Affirmation[]
   hypnosis     Hypnosis[]
   imagination  Imagination[]
-  createdAt   DateTime      @default(now())
+  suggestions  GoalSuggestion[]
+}
+
+model Goal {
+  id           String           @id @default(cuid())
+  title        String
+  description  String?
+  userId       String
+  user         User             @relation(fields: [userId], references: [id])
+  affirmations Affirmation[]
+  hypnosis     Hypnosis[]
+  imagination  Imagination[]
+  suggestions  GoalSuggestion[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt // 👈 restored
 }
 
 model Affirmation {
   id        String   @id @default(cuid())
-  text      String
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  goalId    String?  // optional link to a goal
+  content   String
+  goalId    String?
   goal      Goal?    @relation(fields: [goalId], references: [id])
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt // 👈 restored
+  User      User?    @relation(fields: [userId], references: [id])
+  userId    String?
 }
 
 model Hypnosis {
   id        String   @id @default(cuid())
-  script    String
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  goalId    String?  
+  content   String
+  goalId    String?
   goal      Goal?    @relation(fields: [goalId], references: [id])
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt // 👈 restored
+  User      User?    @relation(fields: [userId], references: [id])
+  userId    String?
 }
 
 model Imagination {
   id        String   @id @default(cuid())
-  scenario  String
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  goalId    String?  
+  content   String
+  goalId    String?
   goal      Goal?    @relation(fields: [goalId], references: [id])
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt // 👈 restored
+  User      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+}
+
+model GoalSuggestion {
+  id           String   @id @default(cuid())
+  type         String
+  content      String
+  suggestionId String
+  goalId       String
+  goal         Goal     @relation(fields: [goalId], references: [id])
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt // 👈 restored
 }
